@@ -32,7 +32,7 @@ yarn doc
 ```
 ## Documentation
 
-You can find the documentation [here](https://youwol.github.io/$pdbloader/dist/docs/index.html).
+You can find the documentation [here](https://roman105.github.io/flux-pdb/dist/docs/).
 
 
 ## Contributions

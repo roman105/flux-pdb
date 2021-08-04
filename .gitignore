@@ -5,4 +5,8 @@ junit.xml
 dist/lib
 dist/@youwol
 dist/index.d.ts
+dist/tests
+dist/auto_generated.ts
+dist/pdbloader.js
+dist/pdbloader.js.map
 src/auto_generated.ts
