@@ -1,4 +1,4 @@
-# pdbloader
+# flux-pdb 
 A PDB loader for YouWol flux
 
 ## Documentation
