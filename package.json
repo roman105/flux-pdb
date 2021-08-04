@@ -1,12 +1,12 @@
 {
-    "name": "pdbloader",
+    "name": "flux-pdb",
     "version": "0.0.0-next",
     "description": "",
     "author": "",
     "keywords": [
         "flux"
     ],
-    "main": "dist/pdbloader.js",
+    "main": "dist/flux-pdb.js",
     "types": "src/index.ts",
     "scripts": {
         "autogen": "node scripts/auto-gen.js",
