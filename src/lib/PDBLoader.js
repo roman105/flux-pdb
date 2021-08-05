@@ -115,7 +115,7 @@ import {
 			}
 		
 		}
-		
+				
 		// parse
 		const lines = text.content.split( '\n' );
 
