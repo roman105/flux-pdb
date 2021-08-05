@@ -1,5 +1,10 @@
 # flux-pdb 
-A PDB loader for YouWol flux
+A PDB loader for YouWol flux.
+This brick enables to load a Protein Data Bank object to visualize with three.js.
+<center><img style="width:40%; height:40%;" src="media://protein.png" alt="alt text"></center>
+A basic flux skeleton (prototype) to use the flux-pdb and visualize the loaded 3D object in a 3D viewer. 
+<p></p>
+<center><img style="width:100%; height:100%;" src="media://builderview.png" alt="alt text"></center>
 
 ## Documentation
 You can find the documentation [here](https://roman105.github.io/flux-pdb/dist/docs/).
