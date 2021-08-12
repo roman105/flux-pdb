@@ -10,4 +10,5 @@ dist/auto_generated.ts
 dist/auto_generated.d.ts
 dist/flux-pdb.js
 dist/flux-pdb.js.map
+yarn-error.log
 src/auto_generated.ts

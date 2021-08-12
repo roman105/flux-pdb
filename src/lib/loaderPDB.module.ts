@@ -1,12 +1,19 @@
-import { Context, expectAnyOf, expectAttribute, expect as expect_, expectCount,
-    BuilderView, Flux, Property, RenderView, Schema, ModuleFlux, Pipe,freeContract,
+import {
+    Context, expectAnyOf, expectAttribute, expect as expect_, expectCount,
+    BuilderView, Flux, Property, RenderView, Schema, ModuleFlux, Pipe, freeContract, expectInstanceOf
 } from '@youwol/flux-core'
 import { attr$, render } from "@youwol/flux-view"
-import{pack} from './main'
+import { pack } from './main'
 import { Scene } from 'three'
 import { loadPDB } from './PDBLoader'
-import { Object3D, MeshPhongMaterial, Mesh, Group, Vector3, Color, BoxGeometry, IcosahedronGeometry, DirectionalLight} from 'three' 
+import {
+    Object3D, MeshPhongMaterial, Mesh, Group, Vector3, Color, BoxGeometry,
+    IcosahedronGeometry, DirectionalLight
+} from 'three'
 import { CSS2DObject, CSS2DRenderer } from './CSS2Sobject'
+import { map } from 'rxjs/operators'
+import * as FluxThree from '@youwol/flux-three'
+import * as FluxFiles from '@youwol/flux-files'
 
 /**
   ## Presentation
@@ -14,7 +21,7 @@ This brick enables to load a Protein Data Bank object to visualize with three.js
 <center><img style="width:40%; height:40%;" src="media://protein.png" alt="alt text"></center>
 
  */
-export namespace LoadPDB{
+export namespace LoadPDB {
     let svgIcon = `<g transform="translate(0.000000,1000.000000) scale(0.100000,-0.100000)"
     fill="#000000" stroke="none">
     <path d="M4910 7384 c-95 -41 -151 -123 -152 -224 l-1 -59 -111 -64 c-61 -35
@@ -66,19 +73,30 @@ export namespace LoadPDB{
     @Schema({
         pack
     })
-    export class PersistentData {
-        @Property({
-            description: "beginning simulation",
-            //type: "date"
-        })
-        load: string = "fileloaded"
+
+    export class PersistentData extends FluxThree.Schemas.SimpleObject3DConfiguration {
+
+        constructor(forwardParams) {
+            super({
+                ...forwardParams,
+                ...{
+                    objectId: forwardParams && forwardParams['objectId'] ? forwardParams['objectId'] : 'PDBLoaded',
+                    objectName: forwardParams && forwardParams['objectName'] ? forwardParams['objectName'] : 'PDBLoaded'
+                }
+            })
+        }
     }
+
+    export let fileExpectation = expectInstanceOf<FluxFiles.Interfaces.File>({
+        typeName: 'File', Type: FluxFiles.Interfaces.File, attNames: ['file', 'data']
+    })
+
     @Flux({
         pack: pack,
         namespace: LoadPDB,
         id: "brickLoaderPDB",
         displayName: "Loader PDB",
-        description: "A brick that loads .pdb format for protein  :/ ",
+        description: "Create PDB 3D object from Protein Data Bank data format ",
         resources: {
             'technical doc': `${pack.urlCDN}/dist/docs/modules/lib_simple_module_module.simplemodule.html`
         }
@@ -92,90 +110,112 @@ export namespace LoadPDB{
          * This is the output, you can use it to emit messages using *this.result$.next(...)*.
          *
          */
-        result$ : Pipe<Object3D>
-        constructor( params ){
+        output$: Pipe<Object3D>
+        constructor(params) {
             super(params)
+
             this.addInput({
-                id:'input',
-                description: 'trigger an operation between 2 numbers',
+                id: 'input',
+                description: 'load from a file (.pdb)',
                 contract: freeContract(),
-                onTriggered: ({data, configuration, context}) => this.loadPDBObject(data, configuration, context)
+                onTriggered: ({ data, configuration, context }) => this.loadPDBObject(data, configuration, context)
             })
-            this.result$ = this.addOutput({id:'result'})
+            this.output$ = this.addOutput({ id: 'result' })
         }
         /**
         * Processing function triggered when a message is received
         */
-        loadPDBObject(data: string, configuration: PersistentData, context: Context){
-            const pdb = loadPDB(data)
-            const root = new Group()
-            const offset = new Vector3();
-            const geometryAtoms = pdb.geometryAtoms;
-					const geometryBonds = pdb.geometryBonds;
-					const json = pdb.json;
-					const boxGeometry = new BoxGeometry( 1, 1, 1 );
-					const sphereGeometry = new IcosahedronGeometry( 1, 3 );
-					geometryAtoms.computeBoundingBox();
-					geometryAtoms.boundingBox.getCenter( offset ).negate();
-					geometryAtoms.translate( offset.x, offset.y, offset.z );
-					geometryBonds.translate( offset.x, offset.y, offset.z );
-					let positions = geometryAtoms.getAttribute( 'position' );
-					const colors = geometryAtoms.getAttribute( 'color' );
-					const position = new Vector3();
-					const color = new Color();
-					for ( let i = 0; i < positions.count; i ++ ) {
-						position.x = positions.getX( i );
-						position.y = positions.getY( i );
-						position.z = positions.getZ( i );
-						color.r = colors.getX( i );
-						color.g = colors.getY( i );
-						color.b = colors.getZ( i );
-						const material = new MeshPhongMaterial( { color: color } );
-						const object = new Mesh( sphereGeometry, material );
-						object.position.copy( position );
-						object.position.multiplyScalar( 75 );
-						object.scale.multiplyScalar( 25 );
-						root.add( object );
-						
-                        const atom = json.atoms[ i ];
-						const text = document.createElement( 'div' );
-						text.className = 'label';
-						text.style.color = 'rgb(' + atom[ 3 ][ 0 ] + ',' + atom[ 3 ][ 1 ] + ',' + atom[ 3 ][ 2 ] + ')';
-						text.textContent = atom[ 4 ];
-						const label = new CSS2DObject( text );
-						label.copyPosition( object.position );
-                        //label.super.position(object.position)
-                        //label.copyPosition( object.position )
-						root.add( label ); 
-					}
-					positions = geometryBonds.getAttribute( 'position' );
-					const start = new Vector3();
-					const end = new Vector3();
-					for ( let i = 0; i < positions.count; i += 2 ) {
-						start.x = positions.getX( i );
-						start.y = positions.getY( i );
-						start.z = positions.getZ( i );
-						end.x = positions.getX( i + 1 );
-						end.y = positions.getY( i + 1 );
-						end.z = positions.getZ( i + 1 );
-						start.multiplyScalar( 75 );
-						end.multiplyScalar( 75 );
-						const object = new Mesh( boxGeometry, new MeshPhongMaterial( 0xffffff ) );
-						object.position.copy( start );
-						object.position.lerp( end, 0.5 );
-						object.scale.set( 5, 5, start.distanceTo( end ) );
-						object.lookAt( end );
-						root.add( object );
-					} 
-                    const light1 = new DirectionalLight( 0xffffff, 0.8 );
-                    light1.position.set( 1, 1, 1 );
-                    root.add( light1 );
-                    const light2 = new DirectionalLight( 0xffffff, 0.5 );
-                    light2.position.set( - 1, - 1, 1 );
-                    root.add( light2 );
-            this.result$.next({data: root, context})
-            context.terminate()
+        loadPDBObject(file: FluxFiles.Interfaces.File, configuration: PersistentData, context: Context) {
+
+
+            /* const pdb =  file.readAsText().map((buffer) => {
+                 return loadPDB(buffer)
+                 
+            }) */
+
+            file.readAsText().pipe(
+                map((buffer: string) => {
+                    return loadPDB(buffer)
+                }),
+                map((pdb) => {
+                    return createMolecule3DObject(pdb)
+                }),
+            ).subscribe((root) => {
+                this.output$.next({ data: root, context })
+                context.terminate()
+            })
         }
+    }
+
+    function createMolecule3DObject(pdb) {
+
+        const root = new Group()
+        const offset = new Vector3();
+        const geometryAtoms = pdb.geometryAtoms;
+        const geometryBonds = pdb.geometryBonds;
+        const json = pdb.json;
+        const boxGeometry = new BoxGeometry(1, 1, 1);
+        const sphereGeometry = new IcosahedronGeometry(1, 3);
+        geometryAtoms.computeBoundingBox();
+        geometryAtoms.boundingBox.getCenter(offset).negate();
+        geometryAtoms.translate(offset.x, offset.y, offset.z);
+        geometryBonds.translate(offset.x, offset.y, offset.z);
+        let positions = geometryAtoms.getAttribute('position');
+        const colors = geometryAtoms.getAttribute('color');
+        const position = new Vector3();
+        const color = new Color();
+        for (let i = 0; i < positions.count; i++) {
+            position.x = positions.getX(i);
+            position.y = positions.getY(i);
+            position.z = positions.getZ(i);
+            color.r = colors.getX(i);
+            color.g = colors.getY(i);
+            color.b = colors.getZ(i);
+            const material = new MeshPhongMaterial({ color: color });
+            const object = new Mesh(sphereGeometry, material);
+            object.position.copy(position);
+            object.position.multiplyScalar(75);
+            object.scale.multiplyScalar(25);
+            root.add(object);
+
+            const atom = json.atoms[i];
+            const text = document.createElement('div');
+            text.className = 'label';
+            text.style.color = 'rgb(' + atom[3][0] + ',' + atom[3][1] + ',' + atom[3][2] + ')';
+            text.textContent = atom[4];
+            const label = new CSS2DObject(text);
+            label.copyPosition(object.position);
+            //label.super.position(object.position)
+            //label.copyPosition( object.position )
+            root.add(label);
+        }
+        positions = geometryBonds.getAttribute('position');
+        const start = new Vector3();
+        const end = new Vector3();
+        for (let i = 0; i < positions.count; i += 2) {
+            start.x = positions.getX(i);
+            start.y = positions.getY(i);
+            start.z = positions.getZ(i);
+            end.x = positions.getX(i + 1);
+            end.y = positions.getY(i + 1);
+            end.z = positions.getZ(i + 1);
+            start.multiplyScalar(75);
+            end.multiplyScalar(75);
+            const object = new Mesh(boxGeometry, new MeshPhongMaterial());
+            object.position.copy(start);
+            object.position.lerp(end, 0.5);
+            object.scale.set(5, 5, start.distanceTo(end));
+            object.lookAt(end);
+            root.add(object);
+        }
+        const light1 = new DirectionalLight(0xffffff, 0.8);
+        light1.position.set(1, 1, 1);
+        root.add(light1);
+        const light2 = new DirectionalLight(0xffffff, 0.5);
+        light2.position.set(- 1, - 1, 1);
+        root.add(light2);
+
+        return root
     }
 }
 // ----------------------------------------------------
@@ -185,41 +225,41 @@ export namespace LoadPDB{
     element: any
     isCSS2DObject = true
 
- 	constructor( element: any ) {
-		super();
+      constructor( element: any ) {
+        super();
 
-		this.element = element || document.createElement( 'div' );
+        this.element = element || document.createElement( 'div' );
 
-		this.element.style.position = 'absolute';
-		this.element.style.userSelect = 'none';
+        this.element.style.position = 'absolute';
+        this.element.style.userSelect = 'none';
 
-		this.element.setAttribute( 'draggable', false );
+        this.element.setAttribute( 'draggable', false );
 
-		super.addEventListener( 'removed', function () {
+        super.addEventListener( 'removed', function () {
 
-			this.traverse( function ( object ) {
+            this.traverse( function ( object ) {
 
-				if ( object.element instanceof Element && object.element.parentNode !== null ) {
+                if ( object.element instanceof Element && object.element.parentNode !== null ) {
 
-					object.element.parentNode.removeChild( object.element );
+                    object.element.parentNode.removeChild( object.element );
 
-				}
+                }
 
-			} );
+            } );
 
-		} );
+        } );
 
-	}
+    }
 
-	copy( source: any, recursive: any ) {
+    copy( source: any, recursive: any ) {
 
-		super.copy( source, recursive );
+        super.copy( source, recursive );
 
-		this.element = source.element.cloneNode( true );
+        this.element = source.element.cloneNode( true );
 
-		return this;
+        return this;
 
-	}
+    }
     copyPosition( pos: any ) {
         this.position.copy( pos );
 
@@ -239,7 +279,7 @@ class CSS2DRenderer {
     domElement: any
     _width = 0
     _height = 0
-	_widthHalf = 0
+    _widthHalf = 0
     _heightHalf = 0
 
 
@@ -254,14 +294,14 @@ class CSS2DRenderer {
         }
     }
 
-	constructor() {
-		const cache = {
-			objects: new WeakMap()
-		}
-		const domElement = document.createElement( 'div' );
-		domElement.style.overflow = 'hidden';
-		this.domElement = domElement
-	}
+    constructor() {
+        const cache = {
+            objects: new WeakMap()
+        }
+        const domElement = document.createElement( 'div' );
+        domElement.style.overflow = 'hidden';
+        this.domElement = domElement
+    }
 
     render( scene: any, camera: any ) {
         if ( scene.autoUpdate === true ) scene.updateMatrixWorld();
